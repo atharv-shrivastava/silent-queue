@@ -28,6 +28,23 @@
     .method-switch { display:flex; gap:8px; margin:0 0 16px; padding:5px; width:max-content; max-width:100%; background:#101827; border:1px solid var(--line); border-radius:12px; }
     .method { border:0; border-radius:8px; padding:10px 14px; background:transparent; color:var(--muted); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
     .method.active { background:#26394b; color:var(--cyan); }
+    .people-intro { margin:8px 0 18px; }
+    .people-intro h3 { margin:5px 0 6px; font-size:22px; }
+    .people-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:14px 0; }
+    .people-card { background:#0e1725; border:1px solid #25344a; border-radius:14px; padding:18px; min-width:0; }
+    .people-card h4 { margin:5px 0 8px; font-size:17px; }
+    .people-card label { display:block; color:var(--muted); font-size:12px; margin:17px 0 6px; }
+    .people-card input { width:100%; color:var(--text); background:#172338; border:1px solid #3a4b63; border-radius:9px; padding:11px 12px; font:inherit; margin-bottom:12px; }
+    .small-status { color:var(--muted); font-size:12px; min-height:20px; margin-top:12px; }
+    .estimate-result { margin-top:17px; padding:18px; border:1px solid #30465d; border-radius:12px; background:#14243a; }
+    .estimate-result span,.estimate-result small { display:block; color:var(--muted); font-size:12px; }
+    .estimate-result strong { display:block; font-size:54px; line-height:1.15; margin:8px 0; color:var(--cyan); }
+    .estimate-result small { line-height:1.45; }
+    .list-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .calibration-summary { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; color:var(--muted); font-size:12px; }
+    .sample-chip { padding:7px 10px; border:1px solid #30445c; background:#172338; border-radius:99px; }
+    .sample-chip strong { color:var(--text); }
+    .people-card .action { margin-top:7px; }
     .method:focus-visible,.mode:focus-visible,button:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; }
     .panel { background:linear-gradient(150deg, #172234, #121b29); border:1px solid var(--line); border-radius:18px; padding:23px; box-shadow:0 16px 50px #0002; }
     .panel-head { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:18px; }
@@ -58,7 +75,7 @@
     .note strong { color:var(--amber); }
     .hidden { display:none !important; }
     footer { color:#77879e; font-size:11px; text-align:center; margin-top:20px; }
-    @media(max-width:700px) { .shell{width:min(100% - 24px,1080px);padding-top:22px} header{align-items:flex-start} .modes{grid-template-columns:1fr} .panel{padding:17px} .panel-head{display:block} .status{margin-top:10px} .metrics{grid-template-columns:1fr 1fr} .metrics .metric:last-child{grid-column:1/-1} canvas{height:210px} .method-switch{width:100%} .method{flex:1;padding:10px 7px;font-size:12px} }
+    @media(max-width:700px) { .shell{width:min(100% - 24px,1080px);padding-top:22px} header{align-items:flex-start} .modes{grid-template-columns:1fr} .panel{padding:17px} .panel-head{display:block} .status{margin-top:10px} .metrics{grid-template-columns:1fr 1fr} .metrics .metric:last-child{grid-column:1/-1} canvas{height:210px} .method-switch{width:100%;flex-wrap:wrap} .method{flex:1;padding:10px 7px;font-size:12px} .people-grid{grid-template-columns:1fr} .list-heading{align-items:flex-start;flex-direction:column} .estimate-result strong{font-size:46px} }
   </style>
 </head>
 <body>
@@ -74,7 +91,7 @@
       <p>Compare a room's frequency response and approximate reverberation decay. This experiment helps test whether occupancy changes can be measured; it does not count people.</p>
     </section>
 
-    <nav class="modes" aria-label="Experiment modes">
+    <nav class="modes" id="roomModeNav" aria-label="Experiment modes">
       <button class="mode active" id="baselineMode" type="button">
         <strong>01 / Set room baseline</strong>
         <span>Measure and save the room's reference response.</span>
@@ -88,6 +105,7 @@
     <div class="method-switch" aria-label="Measurement method">
       <button class="method active" id="frequencyMethod" type="button">Frequency response</button>
       <button class="method" id="reverbMethod" type="button">Reverberation (RT60)</button>
+      <button class="method" id="peopleMethod" type="button">People count demo</button>
     </div>
 
     <section class="panel">
@@ -99,13 +117,15 @@
         <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Microphone not connected</span></div>
       </div>
 
-      <div class="controls">
-        <button class="action" id="runButton" type="button">Start baseline test</button>
-        <button class="action secondary" id="micButton" type="button">Enable microphone</button>
-        <button class="action danger" id="resetButton" type="button">Clear baseline</button>
+      <div id="sharedControls">
+        <div class="controls">
+          <button class="action" id="runButton" type="button">Start baseline test</button>
+          <button class="action secondary" id="micButton" type="button">Enable microphone</button>
+          <button class="action danger" id="resetButton" type="button">Clear baseline</button>
+        </div>
+        <div class="progress-wrap"><div class="progress" id="progressBar"></div></div>
+        <div class="progress-label" id="progressLabel">Allow microphone access, then start the test.</div>
       </div>
-      <div class="progress-wrap"><div class="progress" id="progressBar"></div></div>
-      <div class="progress-label" id="progressLabel">Allow microphone access, then start the test.</div>
 
       <div id="frequencyPanel">
       <div class="metrics">
@@ -153,6 +173,56 @@
       </div>
 
       <div class="note"><strong>Important:</strong> Keep the same laptop, speaker volume, microphone, and positions for both tests. The reverberation result is an estimate from a speaker–room–microphone measurement, not a calibrated ISO measurement. Reflections, background noise, room changes, speaker response, microphone processing and automatic gain can affect it. A change does not prove that people entered the room.</div>
+            <div id="peoplePanel" class="hidden">
+        <div class="people-intro">
+          <div class="eyebrow">Single-room calibrated demo</div>
+          <h3>Estimate how many people are in the room</h3>
+          <p class="sub">First teach this browser what the room sounds like at known occupancy levels. Then run a fresh measurement to get an experimental estimate.</p>
+        </div>
+
+        <div class="metrics">
+          <div class="metric"><span>Calibration samples</span><strong id="peopleSampleCount">0</strong></div>
+          <div class="metric"><span>Occupancy levels</span><strong id="peopleLevelCount">0</strong></div>
+          <div class="metric"><span>Last estimate</span><strong id="peopleLastEstimate">--</strong></div>
+        </div>
+
+        <div class="people-grid">
+          <section class="people-card">
+            <div class="eyebrow">01 / Teach the room</div>
+            <h4>Collect a labelled sample</h4>
+            <p class="sub">Enter how many people are physically in the room now. Keep the same laptop, speaker, microphone and positions for every sample.</p>
+            <label for="knownPeopleInput">People currently in the room</label>
+            <input id="knownPeopleInput" type="number" min="0" max="100" step="1" value="0" />
+            <button class="action" id="collectCalibrationButton" type="button">Record calibration sample</button>
+            <div class="small-status" id="calibrationStatus">No calibration samples collected yet.</div>
+            <div class="progress-wrap"><div class="progress" id="peopleProgressBar"></div></div>
+          </section>
+
+          <section class="people-card">
+            <div class="eyebrow">02 / Estimate occupancy</div>
+            <h4>Measure the room again</h4>
+            <p class="sub">The app compares the new decay profile with the labelled samples saved in this browser.</p>
+            <button class="action secondary" id="estimatePeopleButton" type="button" disabled>Estimate people in room</button>
+            <div class="estimate-result">
+              <span>Estimated number of people</span>
+              <strong id="estimatedPeople">--</strong>
+              <small id="estimateNote">Collect at least 4 samples across 2 or more occupancy levels first.</small>
+            </div>
+            <div class="small-status" id="estimateDetails">No estimate yet.</div>
+          </section>
+        </div>
+
+        <section class="people-card calibration-list">
+          <div class="list-heading">
+            <div><div class="eyebrow">Your room profile</div><h4>Saved calibration data</h4></div>
+            <button class="action danger" id="clearPeopleDataButton" type="button">Clear training data</button>
+          </div>
+          <div id="calibrationSummary" class="calibration-summary">No samples saved.</div>
+        </section>
+
+        <div class="note"><strong>Experimental limitation:</strong> This does not detect or track individuals. It predicts the nearest occupancy pattern in the calibration data for this same room and setup. Calibrate at several known counts (for example 0, 1, 2, 5 and 10 people), with at least 3–5 repeated samples per count. The displayed number is a prototype estimate, not a verified people count. A different room, device, position or background condition requires a new calibration.</div>
+      </div>
+
     </section>
     <footer>Audio is processed in this browser. Raw recordings are not uploaded or retained. Baselines are saved in this browser's local storage.</footer>
   </main>
@@ -162,9 +232,13 @@
   const FREQUENCIES = [250, 500, 1000, 2000, 4000, 6000];
   const STORAGE_KEY = "silentqueue-room-baseline-v1";
   const REVERB_STORAGE_KEY = "silentqueue-reverb-baseline-v1";
+  const PEOPLE_STORAGE_KEY = "silentqueue-people-calibration-v1";
   const $ = (id) => document.getElementById(id);
   let mode = "baseline";
   let method = "frequency";
+  let peopleBusy = false;
+  let calibrationSamples = loadCalibrationSamples();
+  let latestPeopleEstimate = null;
   let audioContext = null;
   let micStream = null;
   let analyser = null;
@@ -187,6 +261,17 @@
       const value = JSON.parse(localStorage.getItem(REVERB_STORAGE_KEY));
       return value && Array.isArray(value.curve) ? value : null;
     } catch { return null; }
+  }
+
+  function loadCalibrationSamples() {
+    try {
+      const value = JSON.parse(localStorage.getItem(PEOPLE_STORAGE_KEY));
+      return Array.isArray(value) ? value : [];
+    } catch { return []; }
+  }
+
+  function saveCalibrationSamples() {
+    localStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(calibrationSamples));
   }
 
   function setStatus(text, state = "") {
@@ -251,15 +336,203 @@
 
   function setMethod(nextMethod) {
     method = nextMethod;
+    const isPeople = method === "people";
     $("frequencyMethod").classList.toggle("active", method === "frequency");
     $("reverbMethod").classList.toggle("active", method === "reverb");
+    $("peopleMethod").classList.toggle("active", isPeople);
     $("frequencyPanel").classList.toggle("hidden", method !== "frequency");
     $("reverbPanel").classList.toggle("hidden", method !== "reverb");
-    setMode(mode);
-    setStatus("Ready for " + (method === "reverb" ? "reverberation test" : "frequency response test"));
+    $("peoplePanel").classList.toggle("hidden", !isPeople);
+    $("roomModeNav").classList.toggle("hidden", isPeople);
+    $("sharedControls").classList.toggle("hidden", isPeople);
+    if (!isPeople) {
+      setMode(mode);
+      setStatus("Ready for " + (method === "reverb" ? "reverberation test" : "frequency response test"));
+    } else {
+      setStatus("People count demo ready");
+      refreshPeoplePanel();
+    }
     updateMetrics();
     if (method === "reverb") drawDecayChart();
-    else drawChart();
+    else if (method === "frequency") drawChart();
+  }
+
+  function getOccupancyLevels() {
+    return [...new Set(calibrationSamples.map(sample => sample.count))].sort((a,b) => a-b);
+  }
+
+  function refreshPeoplePanel() {
+    const levels = getOccupancyLevels();
+    $("peopleSampleCount").textContent = String(calibrationSamples.length);
+    $("peopleLevelCount").textContent = String(levels.length);
+    $("peopleLastEstimate").textContent = latestPeopleEstimate === null ? "--" : latestPeopleEstimate + " people";
+    const canEstimate = calibrationSamples.length >= 4 && levels.length >= 2 && !peopleBusy;
+    $("estimatePeopleButton").disabled = !canEstimate;
+    $("calibrationSummary").innerHTML = "";
+    if (!calibrationSamples.length) {
+      $("calibrationSummary").textContent = "No samples saved. Start by recording an empty-room sample.";
+    } else {
+      for (const count of levels) {
+        const total = calibrationSamples.filter(sample => sample.count === count).length;
+        const chip = document.createElement("span");
+        chip.className = "sample-chip";
+        chip.textContent = count + (count === 1 ? " person" : " people") + " · ";
+        const strong = document.createElement("strong");
+        strong.textContent = total + " sample" + (total === 1 ? "" : "s");
+        chip.appendChild(strong);
+        $("calibrationSummary").appendChild(chip);
+      }
+    }
+  }
+
+  function interpolateCurveValue(curve, timeMs) {
+    if (!curve || !curve.length) return null;
+    if (timeMs <= curve[0].ms) return curve[0].db;
+    for (let i = 1; i < curve.length; i++) {
+      if (curve[i].ms >= timeMs) {
+        const before = curve[i-1], after = curve[i];
+        const span = after.ms - before.ms;
+        const ratio = span > 0 ? (timeMs - before.ms) / span : 0;
+        return before.db + ratio * (after.db - before.db);
+      }
+    }
+    return curve[curve.length-1].db;
+  }
+
+  function getPeopleFeatures(result) {
+    const times = [100, 180, 280, 400, 550, 720, 920, 1150, 1400, 1650];
+    return [
+      Number.isFinite(result.rt60) ? result.rt60 : null,
+      Number.isFinite(result.edt) ? result.edt : null,
+      ...times.map(time => interpolateCurveValue(result.curve, time))
+    ];
+  }
+
+  function estimatePeopleCount(features) {
+    if (calibrationSamples.length < 4 || getOccupancyLevels().length < 2) {
+      throw new Error("Collect at least 4 labelled samples across 2 or more different occupancy levels first.");
+    }
+    const dimensionCount = features.length;
+    const scales = [];
+    for (let dimension = 0; dimension < dimensionCount; dimension++) {
+      const values = calibrationSamples.map(sample => sample.features[dimension]).filter(Number.isFinite);
+      const mean = values.reduce((sum,value)=>sum+value,0) / Math.max(1,values.length);
+      const variance = values.reduce((sum,value)=>sum+Math.pow(value-mean,2),0) / Math.max(1,values.length);
+      const floor = dimension < 2 ? 0.08 : 2.0;
+      scales[dimension] = Math.max(Math.sqrt(variance), floor);
+    }
+    const ranked = calibrationSamples.map(sample => {
+      let sum = 0, used = 0;
+      for (let i = 0; i < dimensionCount; i++) {
+        const currentValue = features[i];
+        const sampleValue = sample.features[i];
+        if (!Number.isFinite(currentValue) || !Number.isFinite(sampleValue)) continue;
+        const normalized = (currentValue - sampleValue) / scales[i];
+        sum += normalized * normalized;
+        used++;
+      }
+      return { count: sample.count, distance: used >= 5 ? Math.sqrt(sum / used) : Infinity, measuredAt: sample.measuredAt };
+    }).filter(item => Number.isFinite(item.distance)).sort((a,b)=>a.distance-b.distance);
+
+    if (!ranked.length) throw new Error("This measurement could not be compared with the saved calibration samples.");
+    const neighbors = ranked.slice(0, Math.min(3, ranked.length));
+    const weights = new Map();
+    for (const neighbor of neighbors) {
+      const weight = 1 / Math.max(neighbor.distance, 0.05);
+      weights.set(neighbor.count, (weights.get(neighbor.count) || 0) + weight);
+    }
+    let predictedCount = 0, bestWeight = -1;
+    for (const [count,weight] of weights.entries()) {
+      if (weight > bestWeight) { bestWeight = weight; predictedCount = count; }
+    }
+    return { count: predictedCount, closestCount: ranked[0].count, nearestDistance: ranked[0].distance, neighbors };
+  }
+
+  async function collectPeopleCalibration() {
+    if (peopleBusy) return;
+    const count = Number($("knownPeopleInput").value);
+    if (!Number.isInteger(count) || count < 0 || count > 100) {
+      $("calibrationStatus").textContent = "Enter a whole number from 0 to 100.";
+      return;
+    }
+    peopleBusy = true;
+    $("collectCalibrationButton").disabled = true;
+    $("estimatePeopleButton").disabled = true;
+    $("calibrationStatus").textContent = "Preparing microphone and recording a calibration sweep...";
+    $("peopleProgressBar").style.width = "0%";
+    setStatus("Collecting calibration sample", "busy");
+    try {
+      await enableMicrophone();
+      const result = await measureReverberation();
+      const features = getPeopleFeatures(result);
+      if (features.filter(Number.isFinite).length < 5) {
+        throw new Error("The decay measurement did not produce enough usable features. Try again with less background noise.");
+      }
+      calibrationSamples.push({
+        count,
+        features,
+        rt60: result.rt60,
+        quality: result.quality,
+        measuredAt: new Date().toISOString()
+      });
+      saveCalibrationSamples();
+      latestPeopleEstimate = null;
+      $("calibrationStatus").textContent = "Saved sample for " + count + (count === 1 ? " person." : " people.") + " Collect more repeated samples for better calibration.";
+      $("peopleProgressBar").style.width = "100%";
+      setStatus("Calibration sample saved", "ready");
+    } catch (error) {
+      $("calibrationStatus").textContent = error.message || "Could not save the calibration sample.";
+      setStatus("Calibration failed");
+    } finally {
+      peopleBusy = false;
+      $("collectCalibrationButton").disabled = false;
+      refreshPeoplePanel();
+    }
+  }
+
+  async function runPeopleEstimate() {
+    if (peopleBusy) return;
+    peopleBusy = true;
+    $("estimatePeopleButton").disabled = true;
+    $("collectCalibrationButton").disabled = true;
+    $("estimateNote").textContent = "Recording a new room measurement...";
+    $("estimateDetails").textContent = "Please keep the room and device setup unchanged during the test.";
+    setStatus("Estimating room occupancy", "busy");
+    try {
+      await enableMicrophone();
+      const result = await measureReverberation();
+      const estimate = estimatePeopleCount(getPeopleFeatures(result));
+      latestPeopleEstimate = estimate.count;
+      $("estimatedPeople").textContent = String(estimate.count);
+      $("estimateNote").textContent = "Experimental estimate for this calibrated room. Not a verified count.";
+      $("estimateDetails").textContent = "Closest stored sample: " + estimate.closestCount +
+        (estimate.closestCount === 1 ? " person" : " people") +
+        " · " + estimate.neighbors.length + " nearest samples compared · " +
+        (result.rt60 ? "Measured RT60: " + result.rt60.toFixed(2) + " s" : "RT60 fit unavailable; decay profile used.");
+      setStatus("People estimate complete", "ready");
+    } catch (error) {
+      $("estimatedPeople").textContent = "--";
+      $("estimateNote").textContent = "A valid estimate could not be produced.";
+      $("estimateDetails").textContent = error.message || "Estimation failed.";
+      setStatus("Estimation failed");
+    } finally {
+      peopleBusy = false;
+      $("collectCalibrationButton").disabled = false;
+      refreshPeoplePanel();
+    }
+  }
+
+  function clearPeopleCalibration() {
+    if (peopleBusy) return;
+    calibrationSamples = [];
+    latestPeopleEstimate = null;
+    localStorage.removeItem(PEOPLE_STORAGE_KEY);
+    $("estimatedPeople").textContent = "--";
+    $("estimateNote").textContent = "Collect at least 4 samples across 2 or more occupancy levels first.";
+    $("estimateDetails").textContent = "Calibration data cleared.";
+    $("calibrationStatus").textContent = "No calibration samples collected yet.";
+    $("peopleProgressBar").style.width = "0%";
+    refreshPeoplePanel();
   }
 
   async function enableMicrophone() {
@@ -721,6 +994,10 @@
 
   $("frequencyMethod").addEventListener("click", () => setMethod("frequency"));
   $("reverbMethod").addEventListener("click", () => setMethod("reverb"));
+  $("peopleMethod").addEventListener("click", () => setMethod("people"));
+  $("collectCalibrationButton").addEventListener("click", collectPeopleCalibration);
+  $("estimatePeopleButton").addEventListener("click", runPeopleEstimate);
+  $("clearPeopleDataButton").addEventListener("click", clearPeopleCalibration);
   $("baselineMode").addEventListener("click", () => setMode("baseline"));
   $("checkMode").addEventListener("click", () => setMode("check"));
   $("micButton").addEventListener("click", async () => {
@@ -740,8 +1017,10 @@
   });
 
   setMode("baseline");
+  setMethod("frequency");
   drawChart();
   updateMetrics();
+  refreshPeoplePanel();
 })();
 </script>
 </body>
