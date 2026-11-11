@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0d1320" />
+  <title>SilentQueue Lab | Room Response Test</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0d1320; --panel:#151e2e; --panel2:#101827; --line:#26344a; --text:#edf3ff; --muted:#9baac1; --cyan:#70d6d0; --blue:#8daeff; --amber:#f2c879; --red:#f18c8c; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:radial-gradient(ellipse at 12% 0%, #1b2a3d 0, var(--bg) 45%); color:var(--text); font:15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; }
+    .shell { width:min(1080px, calc(100% - 36px)); margin:0 auto; padding:34px 0 56px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:28px; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .mark { width:42px; height:42px; display:grid; place-items:center; border:1px solid #36556a; border-radius:13px; color:var(--cyan); font-size:22px; background:#132433; }
+    h1 { font-size:19px; margin:0; letter-spacing:.08em; }
+    .eyebrow { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.16em; }
+    .tag { color:var(--cyan); border:1px solid #315a5a; border-radius:99px; padding:6px 11px; font-size:12px; white-space:nowrap; }
+    .intro { margin:22px 0 26px; max-width:760px; }
+    .intro h2 { font-size:clamp(27px, 5vw, 42px); line-height:1.1; margin:0 0 12px; letter-spacing:-.04em; }
+    .intro p { color:var(--muted); margin:0; max-width:680px; }
+    .modes { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:24px 0 18px; }
+    .mode { text-align:left; background:var(--panel); color:var(--text); padding:19px; border:1px solid var(--line); border-radius:16px; cursor:pointer; transition:.18s ease; }
+    .mode:hover { border-color:#4c7185; transform:translateY(-1px); }
+    .mode.active { border-color:var(--cyan); box-shadow:0 0 0 1px #70d6d033 inset; background:#172838; }
+    .mode strong { display:block; font-size:16px; margin-bottom:5px; }
+    .mode span { color:var(--muted); font-size:13px; }
+    .panel { background:linear-gradient(150deg, #172234, #121b29); border:1px solid var(--line); border-radius:18px; padding:23px; box-shadow:0 16px 50px #0002; }
+    .panel-head { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:18px; }
+    .panel h3 { margin:0 0 5px; font-size:19px; }
+    .sub { margin:0; color:var(--muted); font-size:13px; }
+    .status { display:inline-flex; align-items:center; gap:7px; color:var(--muted); font-size:12px; white-space:nowrap; }
+    .dot { width:8px; height:8px; border-radius:50%; background:#718198; }
+    .dot.ready { background:var(--cyan); box-shadow:0 0 10px #70d6d088; }
+    .dot.busy { background:var(--amber); }
+    .controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:20px 0 14px; }
+    button.action { border:0; border-radius:10px; background:var(--cyan); color:#062226; padding:11px 17px; font-weight:750; cursor:pointer; }
+    button.action.secondary { background:#26364c; color:var(--text); border:1px solid #3a4b63; }
+    button.action.danger { background:transparent; color:#f2a0a0; border:1px solid #74454b; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .progress-wrap { height:6px; background:#263348; border-radius:20px; overflow:hidden; margin:16px 0 7px; }
+    .progress { height:100%; width:0%; background:linear-gradient(90deg,var(--cyan),var(--blue)); transition:width .2s; }
+    .progress-label { color:var(--muted); font-size:12px; min-height:18px; }
+    .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:18px 0; }
+    .metric { background:#0e1725; border:1px solid #25344a; border-radius:12px; padding:13px 14px; min-width:0; }
+    .metric span { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.09em; }
+    .metric strong { display:block; font-size:19px; margin-top:5px; overflow-wrap:anywhere; }
+    .chart-box { margin-top:20px; background:#0c1522; border:1px solid #26344a; border-radius:14px; padding:14px 14px 10px; }
+    .chart-title { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; font-size:13px; }
+    .legend { display:flex; gap:13px; color:var(--muted); font-size:11px; }
+    .swatch { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:5px; }
+    canvas { width:100%; height:250px; display:block; }
+    .note { margin-top:16px; padding:13px 14px; background:#182338; border-left:3px solid var(--amber); border-radius:8px; color:#c6d0df; font-size:12px; }
+    .note strong { color:var(--amber); }
+    .hidden { display:none !important; }
+    footer { color:#77879e; font-size:11px; text-align:center; margin-top:20px; }
+    @media(max-width:700px) { .shell{width:min(100% - 24px,1080px);padding-top:22px} header{align-items:flex-start} .modes{grid-template-columns:1fr} .panel{padding:17px} .panel-head{display:block} .status{margin-top:10px} .metrics{grid-template-columns:1fr 1fr} .metrics .metric:last-child{grid-column:1/-1} canvas{height:210px} }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand"><div class="mark">∿</div><div><div class="eyebrow">Acoustic experiment</div><h1>SILENTQUEUE LAB</h1></div></div>
+      <div class="tag">Prototype 0.1 · Local only</div>
+    </header>
+
+    <section class="intro">
+      <div class="eyebrow">Room response comparison</div>
+      <h2>Does the room sound different<br>when occupancy changes?</h2>
+      <p>Save a room's baseline acoustic response, then measure it again and compare. This prototype tests the measurement idea; it does not count people.</p>
+    </section>
+
+    <nav class="modes" aria-label="Experiment modes">
+      <button class="mode active" id="baselineMode" type="button">
+        <strong>01 / Set room baseline</strong>
+        <span>Measure and save the room's reference response.</span>
+      </button>
+      <button class="mode" id="checkMode" type="button">
+        <strong>02 / Check room</strong>
+        <span>Measure again and compare against the saved baseline.</span>
+      </button>
+    </nav>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h3 id="modeTitle">Set room baseline</h3>
+          <p class="sub" id="modeDescription">Run this once in your chosen room under the conditions you want to treat as normal.</p>
+        </div>
+        <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Microphone not connected</span></div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric"><span>Baseline saved</span><strong id="baselineMetric">No</strong></div>
+        <div class="metric"><span>Test frequencies</span><strong>6 bands</strong></div>
+        <div class="metric"><span>Measurement</span><strong id="measurementMetric">Not started</strong></div>
+      </div>
+
+      <div class="controls">
+        <button class="action" id="runButton" type="button">Start baseline test</button>
+        <button class="action secondary" id="micButton" type="button">Enable microphone</button>
+        <button class="action danger" id="resetButton" type="button">Clear baseline</button>
+      </div>
+      <div class="progress-wrap"><div class="progress" id="progressBar"></div></div>
+      <div class="progress-label" id="progressLabel">Allow microphone access, then start the test.</div>
+
+      <div class="chart-box">
+        <div class="chart-title">
+          <strong>Relative response by frequency</strong>
+          <div class="legend"><span><i class="swatch" style="background:#70d6d0"></i>Baseline</span><span><i class="swatch" style="background:#8daeff"></i>Current</span></div>
+        </div>
+        <canvas id="responseChart" width="900" height="300" aria-label="Room response graph"></canvas>
+      </div>
+
+      <div class="metrics">
+        <div class="metric"><span>Average change</span><strong id="changeMetric">--</strong></div>
+        <div class="metric"><span>Largest band change</span><strong id="largestMetric">--</strong></div>
+        <div class="metric"><span>Comparison</span><strong id="comparisonMetric">--</strong></div>
+      </div>
+
+      <div class="note"><strong>Important:</strong> Keep the same laptop, speaker volume, microphone, and positions for both tests. This measures the combined speaker–room–microphone response. A change does not prove that people entered the room; furniture, movement, noise, or device processing can also change the reading.</div>
+    </section>
+    <footer>Audio is processed in this browser. No recording is uploaded or stored. The baseline is saved in this browser's local storage.</footer>
+  </main>
+
+<script>
+(() => {
+  const FREQUENCIES = [250, 500, 1000, 2000, 4000, 6000];
+  const STORAGE_KEY = "silentqueue-room-baseline-v1";
+  const $ = (id) => document.getElementById(id);
+  let mode = "baseline";
+  let audioContext = null;
+  let micStream = null;
+  let analyser = null;
+  let micSource = null;
+  let busy = false;
+  let baseline = loadBaseline();
+  let current = null;
+
+  function loadBaseline() {
+    try {
+      const value = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return value && Array.isArray(value.readings) ? value : null;
+    } catch { return null; }
+  }
+
+  function setStatus(text, state = "") {
+    $("statusText").textContent = text;
+    $("statusDot").className = "dot" + (state ? " " + state : "");
+  }
+
+  function updateMetrics() {
+    $("baselineMetric").textContent = baseline ? new Date(baseline.savedAt).toLocaleString() : "No";
+    $("measurementMetric").textContent = current ? "Complete" : "Not started";
+    if (!baseline || !current) {
+      $("changeMetric").textContent = "--";
+      $("largestMetric").textContent = "--";
+      $("comparisonMetric").textContent = "--";
+      return;
+    }
+    const deltas = current.readings.map((r, i) => r.db - baseline.readings[i].db);
+    const mean = deltas.reduce((sum, n) => sum + Math.abs(n), 0) / deltas.length;
+    const largest = Math.max(...deltas.map(Math.abs));
+    $("changeMetric").textContent = mean.toFixed(1) + " dB";
+    $("largestMetric").textContent = largest.toFixed(1) + " dB";
+    $("comparisonMetric").textContent = mean < 3 ? "Similar" : mean < 8 ? "Changed" : "Large change";
+  }
+
+  function setMode(nextMode) {
+    mode = nextMode;
+    $("baselineMode").classList.toggle("active", mode === "baseline");
+    $("checkMode").classList.toggle("active", mode === "check");
+    $("modeTitle").textContent = mode === "baseline" ? "Set room baseline" : "Check room";
+    $("modeDescription").textContent = mode === "baseline"
+      ? "Run this once in your chosen room under the conditions you want to treat as normal."
+      : "Run the same test again without moving the speaker or microphone. The result will be compared with your saved baseline.";
+    $("runButton").textContent = mode === "baseline" ? "Start baseline test" : "Run room check";
+    $("runButton").disabled = busy || (mode === "check" && !baseline);
+    $("progressLabel").textContent = mode === "check" && !baseline
+      ? "Set a baseline first before checking the room."
+      : mode === "baseline" ? "Allow microphone access, then start the test." : "Ready to compare with the saved baseline.";
+  }
+
+  async function enableMicrophone() {
+    if (micStream) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("Microphone access is unavailable. Open this page over HTTPS or localhost in a supported browser.");
+    }
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    await audioContext.resume();
+    micSource = audioContext.createMediaStreamSource(micStream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 8192;
+    analyser.smoothingTimeConstant = 0;
+    micSource.connect(analyser);
+    setStatus("Microphone ready", "ready");
+    $("micButton").textContent = "Microphone enabled";
+    $("micButton").disabled = true;
+  }
+
+  const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  function goertzel(samples, sampleRate, targetFrequency) {
+    const omega = 2 * Math.PI * targetFrequency / sampleRate;
+    const coeff = 2 * Math.cos(omega);
+    let q0 = 0, q1 = 0, q2 = 0;
+    for (let i = 0; i < samples.length; i++) {
+      q0 = coeff * q1 - q2 + samples[i];
+      q2 = q1;
+      q1 = q0;
+    }
+    const power = Math.max(0, q1 * q1 + q2 * q2 - coeff * q1 * q2);
+    return (2 * Math.sqrt(power)) / samples.length;
+  }
+
+  async function measureTone(frequency) {
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.055, audioContext.currentTime + 0.06);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start();
+
+    await wait(430);
+    const samples = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(samples);
+    const amplitude = goertzel(samples, audioContext.sampleRate, frequency);
+
+    gain.gain.setTargetAtTime(0, audioContext.currentTime, 0.015);
+    oscillator.stop(audioContext.currentTime + 0.08);
+    await wait(110);
+
+    return { frequency, amplitude, db: 20 * Math.log10(Math.max(amplitude, 1e-8)) };
+  }
+
+  async function runTest() {
+    if (busy) return;
+    if (mode === "check" && !baseline) return;
+    busy = true;
+    $("runButton").disabled = true;
+    $("micButton").disabled = true;
+    $("progressBar").style.width = "0%";
+    current = null;
+    updateMetrics();
+    try {
+      await enableMicrophone();
+      setStatus("Measuring room response", "busy");
+      const readings = [];
+      for (let i = 0; i < FREQUENCIES.length; i++) {
+        $("progressLabel").textContent = "Testing " + FREQUENCIES[i] + " Hz (" + (i + 1) + " of " + FREQUENCIES.length + ")";
+        const reading = await measureTone(FREQUENCIES[i]);
+        readings.push(reading);
+        $("progressBar").style.width = Math.round(((i + 1) / FREQUENCIES.length) * 100) + "%";
+      }
+      current = { readings, measuredAt: new Date().toISOString() };
+      if (mode === "baseline") {
+        baseline = { readings, savedAt: new Date().toISOString() };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(baseline));
+        $("progressLabel").textContent = "Baseline saved in this browser. Switch to Check room when ready.";
+      } else {
+        $("progressLabel").textContent = "Room check complete. Compare the blue readings with the saved baseline.";
+      }
+      setStatus("Measurement complete", "ready");
+      drawChart();
+      updateMetrics();
+    } catch (error) {
+      console.error(error);
+      setStatus("Microphone / audio error");
+      $("progressLabel").textContent = error.message || "Could not complete the measurement.";
+    } finally {
+      busy = false;
+      $("runButton").disabled = mode === "check" && !baseline;
+      $("micButton").disabled = Boolean(micStream);
+    }
+  }
+
+  function drawChart() {
+    const canvas = $("responseChart");
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width, height = canvas.height;
+    ctx.clearRect(0, 0, width, height);
+    const left = 62, right = width - 22, top = 20, bottom = height - 48;
+    const sets = [];
+    if (baseline) sets.push({ key: "baseline", values: baseline.readings.map(r => r.db), color: "#70d6d0" });
+    if (current) sets.push({ key: "current", values: current.readings.map(r => r.db), color: "#8daeff" });
+    const all = sets.flatMap(s => s.values);
+    let min = all.length ? Math.floor((Math.min(...all) - 5) / 5) * 5 : -80;
+    let max = all.length ? Math.ceil((Math.max(...all) + 5) / 5) * 5 : -20;
+    if (max - min < 20) { min -= 10; max += 10; }
+    ctx.font = "14px system-ui";
+    ctx.strokeStyle = "#26364b";
+    ctx.fillStyle = "#91a1b8";
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const y = top + (bottom - top) * i / 4;
+      const value = max - (max - min) * i / 4;
+      ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+      ctx.fillText(value.toFixed(0), 10, y + 5);
+    }
+    FREQUENCIES.forEach((frequency, i) => {
+      const x = left + (right - left) * i / (FREQUENCIES.length - 1);
+      ctx.fillText(frequency >= 1000 ? (frequency / 1000) + "k" : String(frequency), x - 13, bottom + 28);
+    });
+    ctx.fillText("Hz", right - 4, bottom + 45);
+    sets.forEach(set => {
+      ctx.strokeStyle = set.color; ctx.fillStyle = set.color; ctx.lineWidth = 3;
+      ctx.beginPath();
+      set.values.forEach((value, i) => {
+        const x = left + (right - left) * i / (FREQUENCIES.length - 1);
+        const y = bottom - ((value - min) / (max - min)) * (bottom - top);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      set.values.forEach((value, i) => {
+        const x = left + (right - left) * i / (FREQUENCIES.length - 1);
+        const y = bottom - ((value - min) / (max - min)) * (bottom - top);
+        ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+      });
+    });
+    if (!sets.length) {
+      ctx.fillStyle = "#91a1b8"; ctx.font = "17px system-ui";
+      ctx.fillText("Run the baseline test to display measurements.", left + 20, height / 2);
+    }
+  }
+
+  $("baselineMode").addEventListener("click", () => setMode("baseline"));
+  $("checkMode").addEventListener("click", () => setMode("check"));
+  $("micButton").addEventListener("click", async () => {
+    try { await enableMicrophone(); $("progressLabel").textContent = "Microphone is ready. Start the test."; }
+    catch (error) { $("progressLabel").textContent = error.message; setStatus("Microphone permission needed"); }
+  });
+  $("runButton").addEventListener("click", runTest);
+  $("resetButton").addEventListener("click", () => {
+    if (busy) return;
+    localStorage.removeItem(STORAGE_KEY);
+    baseline = null; current = null;
+    setMode(mode);
+    drawChart(); updateMetrics();
+    $("progressBar").style.width = "0%";
+    $("progressLabel").textContent = "Baseline cleared. Run Set room baseline to start again.";
+  });
+
+  setMode("baseline");
+  drawChart();
+  updateMetrics();
+})();
+</script>
+</body>
+</html>
