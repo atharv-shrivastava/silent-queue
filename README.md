@@ -1,17 +1,30 @@
 # SilentQueue Lab
 
-A browser-based proof of concept for testing whether acoustic measurements can distinguish room conditions. This is an experiment, not a validated crowd counter.
+A browser-based proof of concept for testing whether acoustic measurements can distinguish room conditions and support a **single-room calibrated occupancy estimate**. This is an experiment, not a validated crowd counter.
 
 ## Measurement modes
 
-The app has two measurement methods. Each method has its own saved baseline and check workflow.
+The app provides three modes:
 
-1. **Frequency response** — plays six audible sine tones (250, 500, 1000, 2000, 4000 and 6000 Hz) and estimates the relative microphone level at each tone using a Goertzel calculation.
-2. **Reverberation (RT60)** — plays a 3-second exponential swept sine from 120 Hz to 6.5 kHz, records the microphone response, estimates an impulse response using regularized FFT deconvolution, and calculates a Schroeder backward-integrated energy-decay curve. It fits the -5 dB to -25 dB part of the decay (T20) and extrapolates an approximate RT60.
+1. **Frequency response** — plays six audible sine tones (250, 500, 1000, 2000, 4000 and 6000 Hz) and estimates relative microphone level at each tone.
+2. **Reverberation (RT60)** — plays a 3-second exponential swept sine (120 Hz to 6.5 kHz), records the microphone response, estimates an impulse response using regularized FFT deconvolution, calculates a Schroeder backward-integrated energy-decay curve, and extrapolates an approximate RT60 from a T20 fit over the -5 dB to -25 dB section.
+3. **People count demo** — collects reverberation measurements labelled with known occupancy counts, then estimates the nearest matching count for a new measurement using a small nearest-neighbour model.
 
-For either method:
-- **Set room baseline** saves the current measurement in this browser.
-- **Check room** repeats the measurement and compares it with that method's saved baseline.
+## People count demo: how to use it
+
+This mode needs calibration data from the **same room and same hardware setup**. Do not move the laptop/speaker or microphone between training and estimation.
+
+1. Select **People count demo**.
+2. Set the number of people currently in the room in the calibration input.
+3. Click **Record calibration sample** and wait for the sweep to finish.
+4. Repeat several times for that same count.
+5. Repeat for other known counts, for example 0, 1, 2, 5 and 10 people.
+6. Collect at least 4 samples across at least 2 different occupancy levels before estimating. For a useful experiment, aim for 3–5 or more repeated samples at each count.
+7. Click **Estimate people in room** to record a fresh sweep and compare its decay profile against stored calibration samples.
+
+Calibration samples are stored in the browser's local storage. Use **Clear training data** to start over. They are not uploaded to a server.
+
+The demo uses a small nearest-neighbour comparison over the estimated RT60/early-decay values and points sampled from the decay curve. It returns the closest calibrated occupancy class. It is intended only to show the end-to-end concept; it is not a validated machine-learning model.
 
 ## Run it
 
@@ -25,36 +38,37 @@ python -m http.server 5500
 
 Then visit http://localhost:5500.
 
-Use the latest Chrome or Edge for the prototype. The reverberation mode uses `MediaRecorder` to capture the microphone and `decodeAudioData()` to process the recording.
+Use the latest Chrome or Edge for the prototype. Reverberation mode uses `MediaRecorder` to capture microphone audio and `decodeAudioData()` to process the recording.
 
 ## Experimental procedure
 
-- Use the same laptop, browser, speaker volume and microphone for baseline and check.
-- Mark the speaker/laptop and microphone positions. Do not move either between tests.
+- Use the same laptop, browser, speaker volume and microphone for all measurements.
+- Mark speaker/laptop and microphone positions. Do not move either between tests.
 - Keep doors, windows and furniture unchanged.
-- Run at least five repeated measurements for each occupancy condition.
-- Change only one variable at a time, such as the number of people.
-- Test the empty room repeatedly too. This reveals normal measurement variation.
+- Keep people in consistent positions during each labelled calibration set.
+- Repeat each occupancy condition several times.
+- Test the empty room repeatedly to measure normal measurement variation.
+- Change only occupancy when testing whether people affect the acoustic response.
 
 ## What the readings mean
 
-The frequency-response mode measures the combined **speaker + room + microphone + device processing** path. Its dBFS values are not calibrated sound-pressure levels and are not an isolated room frequency response.
+The frequency-response mode measures the combined **speaker + room + microphone + device processing** path. Its dBFS values are not calibrated sound-pressure levels or an isolated room frequency response.
 
-The reverberation mode estimates a room impulse response by deconvolving the known swept signal from the recorded microphone signal. It then uses Schroeder backward integration to create an energy-decay curve. RT60 is extrapolated from a T20 fit over the -5 dB to -25 dB section. The fit quality and usable fit window are shown in the app.
+The reverberation mode estimates a room impulse response by deconvolving the known swept signal from the recorded microphone signal. It uses Schroeder backward integration to create an energy-decay curve. RT60 is extrapolated from a T20 fit. This is a single broadband exploratory estimate, not frequency-band RT60 analysis or a calibrated ISO 3382 measurement.
 
 ## Important limitations
 
-- The app does not count people or estimate an exact occupancy percentage.
-- A change in RT60 or frequency response does not prove that occupancy changed. People, furniture, doors, background noise and device processing can all affect readings.
-- This is a single broadband exploratory measurement, not frequency-band RT60 analysis.
+- The people-count demo predicts the closest occupancy pattern in its saved calibration samples. It does not detect or track individual people.
+- A response change is not proof that occupancy changed. People, furniture, doors, background noise and device processing can all affect readings.
+- A different room, laptop, microphone, speaker level or device position requires a new calibration.
 - Laptop speakers and built-in microphones vary considerably and may not reproduce the sweep evenly.
-- Browser microphone recording may still be affected by operating-system processing, automatic gain, echo cancellation, compression and hardware latency, even though the app requests echo cancellation, noise suppression and automatic gain control to be disabled.
-- The result is not a calibrated ISO 3382 measurement. Treat it as a comparative experiment using the same hardware and setup, not as an absolute acoustic measurement.
+- Browser microphone recording may still be affected by operating-system processing, automatic gain, echo cancellation, compression and hardware latency, even when the app requests audio processing to be disabled.
+- The displayed count is an **experimental estimate**, not a verified count or a guaranteed accurate result. It may be wrong, especially with few calibration samples or overlapping measurements.
 - The sweep is audible. Start at a low volume and do not place speakers close to ears.
 - If the decay fit is not long or clean enough, the app reports that an RT60 estimate is unavailable rather than inventing one.
 
-This is an experimental PoC. The next milestone is to collect repeated measurements in controlled occupancy conditions and test whether the changes are larger than normal measurement variation.
+This is a raw PoC. The next milestone is to collect repeated, labelled measurements and test whether occupancy-related changes are distinguishable from normal measurement variation.
 
 ## Privacy
 
-Microphone audio is processed in the browser. Raw recordings are not uploaded or retained by the app. Baselines are saved in this browser's local storage until cleared.
+Microphone audio is processed in the browser. Raw recordings are not uploaded or retained by the app. Frequency baselines, reverberation baselines and people-count calibration samples are saved in this browser's local storage until cleared.
