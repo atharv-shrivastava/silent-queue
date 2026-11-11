@@ -99,13 +99,6 @@
         <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Microphone not connected</span></div>
       </div>
 
-      <div id="frequencyPanel">
-      <div class="metrics">
-        <div class="metric"><span>Baseline saved</span><strong id="baselineMetric">No</strong></div>
-        <div class="metric"><span>Test frequencies</span><strong>6 bands</strong></div>
-        <div class="metric"><span>Measurement</span><strong id="measurementMetric">Not started</strong></div>
-      </div>
-
       <div class="controls">
         <button class="action" id="runButton" type="button">Start baseline test</button>
         <button class="action secondary" id="micButton" type="button">Enable microphone</button>
@@ -113,6 +106,14 @@
       </div>
       <div class="progress-wrap"><div class="progress" id="progressBar"></div></div>
       <div class="progress-label" id="progressLabel">Allow microphone access, then start the test.</div>
+
+      <div id="frequencyPanel">
+      <div class="metrics">
+        <div class="metric"><span>Baseline saved</span><strong id="baselineMetric">No</strong></div>
+        <div class="metric"><span>Test frequencies</span><strong>6 bands</strong></div>
+        <div class="metric"><span>Measurement</span><strong id="measurementMetric">Not started</strong></div>
+      </div>
+
 
       <div class="chart-box">
         <div class="chart-title">
@@ -255,6 +256,7 @@
     $("frequencyPanel").classList.toggle("hidden", method !== "frequency");
     $("reverbPanel").classList.toggle("hidden", method !== "reverb");
     setMode(mode);
+    setStatus("Ready for " + (method === "reverb" ? "reverberation test" : "frequency response test"));
     updateMetrics();
     if (method === "reverb") drawDecayChart();
     else drawChart();
