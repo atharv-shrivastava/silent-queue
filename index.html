@@ -82,7 +82,7 @@
   <main class="shell">
     <header>
       <div class="brand"><div class="mark">∿</div><div><div class="eyebrow">Acoustic experiment</div><h1>SILENTQUEUE LAB</h1></div></div>
-      <div class="tag">Prototype 0.2 · Local only</div>
+      <div class="tag">Prototype 0.3 · Local only</div>
     </header>
 
     <section class="intro">
@@ -349,6 +349,8 @@
       setMode(mode);
       setStatus("Ready for " + (method === "reverb" ? "reverberation test" : "frequency response test"));
     } else {
+      $("modeTitle").textContent = "People count demo";
+      $("modeDescription").textContent = "Calibrate this room with known occupancy samples, then estimate the nearest matching count.";
       setStatus("People count demo ready");
       refreshPeoplePanel();
     }
