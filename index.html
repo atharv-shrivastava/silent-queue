@@ -239,7 +239,9 @@
       : (mode === "baseline"
           ? "Run this once in your chosen room under the conditions you want to treat as normal."
           : "Run the same test again without moving the speaker or microphone. The result will be compared with your saved baseline.");
-    $("runButton").textContent = mode === "baseline" ? "Start baseline test" : "Run room check";
+    $("runButton").textContent = method === "reverb"
+      ? (mode === "baseline" ? "Measure RT60 baseline" : "Run reverberation test")
+      : (mode === "baseline" ? "Start baseline test" : "Run room check");
     $("runButton").disabled = busy || (mode === "check" && !hasActiveBaseline());
     $("progressLabel").textContent = mode === "check" && !hasActiveBaseline()
       ? "Set a baseline for this measurement method first."
