@@ -25,6 +25,10 @@
     .mode.active { border-color:var(--cyan); box-shadow:0 0 0 1px #70d6d033 inset; background:#172838; }
     .mode strong { display:block; font-size:16px; margin-bottom:5px; }
     .mode span { color:var(--muted); font-size:13px; }
+    .method-switch { display:flex; gap:8px; margin:0 0 16px; padding:5px; width:max-content; max-width:100%; background:#101827; border:1px solid var(--line); border-radius:12px; }
+    .method { border:0; border-radius:8px; padding:10px 14px; background:transparent; color:var(--muted); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+    .method.active { background:#26394b; color:var(--cyan); }
+    .method:focus-visible,.mode:focus-visible,button:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; }
     .panel { background:linear-gradient(150deg, #172234, #121b29); border:1px solid var(--line); border-radius:18px; padding:23px; box-shadow:0 16px 50px #0002; }
     .panel-head { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:18px; }
     .panel h3 { margin:0 0 5px; font-size:19px; }
@@ -54,20 +58,20 @@
     .note strong { color:var(--amber); }
     .hidden { display:none !important; }
     footer { color:#77879e; font-size:11px; text-align:center; margin-top:20px; }
-    @media(max-width:700px) { .shell{width:min(100% - 24px,1080px);padding-top:22px} header{align-items:flex-start} .modes{grid-template-columns:1fr} .panel{padding:17px} .panel-head{display:block} .status{margin-top:10px} .metrics{grid-template-columns:1fr 1fr} .metrics .metric:last-child{grid-column:1/-1} canvas{height:210px} }
+    @media(max-width:700px) { .shell{width:min(100% - 24px,1080px);padding-top:22px} header{align-items:flex-start} .modes{grid-template-columns:1fr} .panel{padding:17px} .panel-head{display:block} .status{margin-top:10px} .metrics{grid-template-columns:1fr 1fr} .metrics .metric:last-child{grid-column:1/-1} canvas{height:210px} .method-switch{width:100%} .method{flex:1;padding:10px 7px;font-size:12px} }
   </style>
 </head>
 <body>
   <main class="shell">
     <header>
       <div class="brand"><div class="mark">∿</div><div><div class="eyebrow">Acoustic experiment</div><h1>SILENTQUEUE LAB</h1></div></div>
-      <div class="tag">Prototype 0.1 · Local only</div>
+      <div class="tag">Prototype 0.2 · Local only</div>
     </header>
 
     <section class="intro">
       <div class="eyebrow">Room response comparison</div>
       <h2>Does the room sound different<br>when occupancy changes?</h2>
-      <p>Save a room's baseline acoustic response, then measure it again and compare. This prototype tests the measurement idea; it does not count people.</p>
+      <p>Compare a room's frequency response and approximate reverberation decay. This experiment helps test whether occupancy changes can be measured; it does not count people.</p>
     </section>
 
     <nav class="modes" aria-label="Experiment modes">
@@ -81,6 +85,11 @@
       </button>
     </nav>
 
+    <div class="method-switch" aria-label="Measurement method">
+      <button class="method active" id="frequencyMethod" type="button">Frequency response</button>
+      <button class="method" id="reverbMethod" type="button">Reverberation (RT60)</button>
+    </div>
+
     <section class="panel">
       <div class="panel-head">
         <div>
@@ -90,6 +99,7 @@
         <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Microphone not connected</span></div>
       </div>
 
+      <div id="frequencyPanel">
       <div class="metrics">
         <div class="metric"><span>Baseline saved</span><strong id="baselineMetric">No</strong></div>
         <div class="metric"><span>Test frequencies</span><strong>6 bands</strong></div>
@@ -118,17 +128,42 @@
         <div class="metric"><span>Comparison</span><strong id="comparisonMetric">--</strong></div>
       </div>
 
-      <div class="note"><strong>Important:</strong> Keep the same laptop, speaker volume, microphone, and positions for both tests. This measures the combined speaker–room–microphone response. A change does not prove that people entered the room; furniture, movement, noise, or device processing can also change the reading.</div>
+      </div>
+
+      <div id="reverbPanel" class="hidden">
+        <div class="metrics">
+          <div class="metric"><span>RT60 baseline</span><strong id="reverbBaselineMetric">No</strong></div>
+          <div class="metric"><span>Sweep range</span><strong>120–6,500 Hz</strong></div>
+          <div class="metric"><span>Current RT60</span><strong id="reverbRT60Metric">--</strong></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">
+            <strong>Schroeder energy decay</strong>
+            <div class="legend"><span><i class="swatch" style="background:#70d6d0"></i>Baseline</span><span><i class="swatch" style="background:#8daeff"></i>Current</span></div>
+          </div>
+          <canvas id="decayChart" width="900" height="300" aria-label="Reverberation decay graph"></canvas>
+        </div>
+        <div class="metrics">
+          <div class="metric"><span>RT60 change</span><strong id="rt60DeltaMetric">--</strong></div>
+          <div class="metric"><span>Decay fit quality</span><strong id="rt60QualityMetric">--</strong></div>
+          <div class="metric"><span>Fit window</span><strong id="rt60WindowMetric">--</strong></div>
+        </div>
+        <p class="sub">RT60 is extrapolated from the measured -5 dB to -25 dB decay segment (T20). A result is shown only when that segment is long enough to fit.</p>
+      </div>
+
+      <div class="note"><strong>Important:</strong> Keep the same laptop, speaker volume, microphone, and positions for both tests. The reverberation result is an estimate from a speaker–room–microphone measurement, not a calibrated ISO measurement. Reflections, background noise, room changes, speaker response, microphone processing and automatic gain can affect it. A change does not prove that people entered the room.</div>
     </section>
-    <footer>Audio is processed in this browser. No recording is uploaded or stored. The baseline is saved in this browser's local storage.</footer>
+    <footer>Audio is processed in this browser. Raw recordings are not uploaded or retained. Baselines are saved in this browser's local storage.</footer>
   </main>
 
 <script>
 (() => {
   const FREQUENCIES = [250, 500, 1000, 2000, 4000, 6000];
   const STORAGE_KEY = "silentqueue-room-baseline-v1";
+  const REVERB_STORAGE_KEY = "silentqueue-reverb-baseline-v1";
   const $ = (id) => document.getElementById(id);
   let mode = "baseline";
+  let method = "frequency";
   let audioContext = null;
   let micStream = null;
   let analyser = null;
@@ -136,6 +171,8 @@
   let busy = false;
   let baseline = loadBaseline();
   let current = null;
+  let reverbBaseline = loadReverbBaseline();
+  let currentReverb = null;
 
   function loadBaseline() {
     try {
@@ -144,26 +181,50 @@
     } catch { return null; }
   }
 
+  function loadReverbBaseline() {
+    try {
+      const value = JSON.parse(localStorage.getItem(REVERB_STORAGE_KEY));
+      return value && Array.isArray(value.curve) ? value : null;
+    } catch { return null; }
+  }
+
   function setStatus(text, state = "") {
     $("statusText").textContent = text;
     $("statusDot").className = "dot" + (state ? " " + state : "");
   }
 
+  function hasActiveBaseline() {
+    return method === "frequency" ? Boolean(baseline) : Boolean(reverbBaseline);
+  }
+
   function updateMetrics() {
     $("baselineMetric").textContent = baseline ? new Date(baseline.savedAt).toLocaleString() : "No";
     $("measurementMetric").textContent = current ? "Complete" : "Not started";
-    if (!baseline || !current) {
+    if (baseline && current) {
+      const deltas = current.readings.map((r, i) => r.db - baseline.readings[i].db);
+      const mean = deltas.reduce((sum, n) => sum + Math.abs(n), 0) / deltas.length;
+      const largest = Math.max(...deltas.map(Math.abs));
+      $("changeMetric").textContent = mean.toFixed(1) + " dB";
+      $("largestMetric").textContent = largest.toFixed(1) + " dB";
+      $("comparisonMetric").textContent = mean < 3 ? "Similar" : mean < 8 ? "Changed" : "Large change";
+    } else {
       $("changeMetric").textContent = "--";
       $("largestMetric").textContent = "--";
       $("comparisonMetric").textContent = "--";
-      return;
     }
-    const deltas = current.readings.map((r, i) => r.db - baseline.readings[i].db);
-    const mean = deltas.reduce((sum, n) => sum + Math.abs(n), 0) / deltas.length;
-    const largest = Math.max(...deltas.map(Math.abs));
-    $("changeMetric").textContent = mean.toFixed(1) + " dB";
-    $("largestMetric").textContent = largest.toFixed(1) + " dB";
-    $("comparisonMetric").textContent = mean < 3 ? "Similar" : mean < 8 ? "Changed" : "Large change";
+    $("reverbBaselineMetric").textContent = reverbBaseline && reverbBaseline.rt60
+      ? reverbBaseline.rt60.toFixed(2) + " s" : "No valid RT60";
+    $("reverbRT60Metric").textContent = currentReverb && currentReverb.rt60
+      ? currentReverb.rt60.toFixed(2) + " s" : "--";
+    if (reverbBaseline && currentReverb && reverbBaseline.rt60 && currentReverb.rt60) {
+      const delta = currentReverb.rt60 - reverbBaseline.rt60;
+      $("rt60DeltaMetric").textContent = (delta >= 0 ? "+" : "") + delta.toFixed(2) + " s";
+    } else {
+      $("rt60DeltaMetric").textContent = "--";
+    }
+    $("rt60QualityMetric").textContent = currentReverb ? currentReverb.quality : "--";
+    $("rt60WindowMetric").textContent = currentReverb && currentReverb.fitDuration
+      ? currentReverb.fitDuration.toFixed(2) + " s" : "--";
   }
 
   function setMode(nextMode) {
@@ -171,14 +232,30 @@
     $("baselineMode").classList.toggle("active", mode === "baseline");
     $("checkMode").classList.toggle("active", mode === "check");
     $("modeTitle").textContent = mode === "baseline" ? "Set room baseline" : "Check room";
-    $("modeDescription").textContent = mode === "baseline"
-      ? "Run this once in your chosen room under the conditions you want to treat as normal."
-      : "Run the same test again without moving the speaker or microphone. The result will be compared with your saved baseline.";
+    $("modeDescription").textContent = method === "reverb"
+      ? (mode === "baseline"
+          ? "Record a reference decay curve in this room. Keep the speaker and microphone positions fixed."
+          : "Repeat the swept-sine test and compare its decay curve with the saved reverberation baseline.")
+      : (mode === "baseline"
+          ? "Run this once in your chosen room under the conditions you want to treat as normal."
+          : "Run the same test again without moving the speaker or microphone. The result will be compared with your saved baseline.");
     $("runButton").textContent = mode === "baseline" ? "Start baseline test" : "Run room check";
-    $("runButton").disabled = busy || (mode === "check" && !baseline);
-    $("progressLabel").textContent = mode === "check" && !baseline
-      ? "Set a baseline first before checking the room."
+    $("runButton").disabled = busy || (mode === "check" && !hasActiveBaseline());
+    $("progressLabel").textContent = mode === "check" && !hasActiveBaseline()
+      ? "Set a baseline for this measurement method first."
       : mode === "baseline" ? "Allow microphone access, then start the test." : "Ready to compare with the saved baseline.";
+  }
+
+  function setMethod(nextMethod) {
+    method = nextMethod;
+    $("frequencyMethod").classList.toggle("active", method === "frequency");
+    $("reverbMethod").classList.toggle("active", method === "reverb");
+    $("frequencyPanel").classList.toggle("hidden", method !== "frequency");
+    $("reverbPanel").classList.toggle("hidden", method !== "reverb");
+    setMode(mode);
+    updateMetrics();
+    if (method === "reverb") drawDecayChart();
+    else drawChart();
   }
 
   async function enableMicrophone() {
@@ -239,18 +316,282 @@
     return { frequency, amplitude, db: 20 * Math.log10(Math.max(amplitude, 1e-8)) };
   }
 
+  function createSweep(sampleRate) {
+    const duration = 3.0;
+    const startFrequency = 120;
+    const endFrequency = 6500;
+    const logarithmicRange = Math.log(endFrequency / startFrequency);
+    const samples = new Float32Array(Math.floor(sampleRate * duration));
+    for (let i = 0; i < samples.length; i++) {
+      const time = i / sampleRate;
+      const phase = 2 * Math.PI * startFrequency * duration / logarithmicRange *
+        (Math.exp(logarithmicRange * time / duration) - 1);
+      const fadeIn = Math.min(1, time / 0.04);
+      const fadeOut = Math.min(1, (duration - time) / 0.04);
+      samples[i] = 0.065 * Math.max(0, Math.min(fadeIn, fadeOut)) * Math.sin(phase);
+    }
+    return { samples, duration };
+  }
+
+  async function captureSweep() {
+    if (typeof MediaRecorder === "undefined") {
+      throw new Error("This browser does not support microphone recording through MediaRecorder. Try the latest Chrome or Edge.");
+    }
+    const sweep = createSweep(audioContext.sampleRate);
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus" : "";
+    const recorder = mimeType ? new MediaRecorder(micStream, { mimeType }) : new MediaRecorder(micStream);
+    const chunks = [];
+    recorder.addEventListener("dataavailable", event => {
+      if (event.data && event.data.size > 0) chunks.push(event.data);
+    });
+    const stopped = new Promise(resolve => recorder.addEventListener("stop", resolve, { once: true }));
+    recorder.start();
+    await wait(300);
+
+    const audioBuffer = audioContext.createBuffer(1, sweep.samples.length, audioContext.sampleRate);
+    audioBuffer.copyToChannel(sweep.samples, 0);
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(audioContext.destination);
+    source.start(audioContext.currentTime + 0.18);
+
+    $("progressLabel").textContent = "Playing 3-second sweep and recording the room response...";
+    $("progressBar").style.width = "35%";
+    await wait((sweep.duration + 2.0) * 1000);
+    if (recorder.state !== "inactive") recorder.stop();
+    await stopped;
+
+    const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+    if (!blob.size) throw new Error("The microphone recording was empty. Check microphone permission and try again.");
+    const decoded = await audioContext.decodeAudioData(await blob.arrayBuffer());
+    const recorded = new Float32Array(decoded.getChannelData(0));
+    const recordedSweep = decoded.sampleRate === audioContext.sampleRate
+      ? sweep.samples : resampleArray(sweep.samples, audioContext.sampleRate, decoded.sampleRate);
+    return { recorded, sweep: recordedSweep, sampleRate: decoded.sampleRate };
+  }
+
+  function resampleArray(input, inputRate, outputRate) {
+    if (inputRate === outputRate) return input;
+    const outputLength = Math.floor(input.length * outputRate / inputRate);
+    const output = new Float32Array(outputLength);
+    const ratio = inputRate / outputRate;
+    for (let i = 0; i < outputLength; i++) {
+      const position = i * ratio;
+      const left = Math.floor(position);
+      const fraction = position - left;
+      const right = Math.min(left + 1, input.length - 1);
+      output[i] = input[left] * (1 - fraction) + input[right] * fraction;
+    }
+    return output;
+  }
+
+  function nextPowerOfTwo(value) {
+    let size = 1;
+    while (size < value) size *= 2;
+    return size;
+  }
+
+  function fft(real, imaginary, inverse) {
+    const n = real.length;
+    let j = 0;
+    for (let i = 1; i < n; i++) {
+      let bit = n >> 1;
+      while (j & bit) { j ^= bit; bit >>= 1; }
+      j ^= bit;
+      if (i < j) {
+        let temp = real[i]; real[i] = real[j]; real[j] = temp;
+        temp = imaginary[i]; imaginary[i] = imaginary[j]; imaginary[j] = temp;
+      }
+    }
+    for (let length = 2; length <= n; length <<= 1) {
+      const angle = (inverse ? 2 : -2) * Math.PI / length;
+      const stepReal = Math.cos(angle);
+      const stepImaginary = Math.sin(angle);
+      for (let offset = 0; offset < n; offset += length) {
+        let wr = 1, wi = 0;
+        const half = length >> 1;
+        for (let k = 0; k < half; k++) {
+          const even = offset + k;
+          const odd = even + half;
+          const tr = wr * real[odd] - wi * imaginary[odd];
+          const ti = wr * imaginary[odd] + wi * real[odd];
+          real[odd] = real[even] - tr;
+          imaginary[odd] = imaginary[even] - ti;
+          real[even] += tr;
+          imaginary[even] += ti;
+          const nextWr = wr * stepReal - wi * stepImaginary;
+          wi = wr * stepImaginary + wi * stepReal;
+          wr = nextWr;
+        }
+      }
+    }
+    if (inverse) {
+      for (let i = 0; i < n; i++) {
+        real[i] /= n;
+        imaginary[i] /= n;
+      }
+    }
+  }
+
+  function deconvolve(recorded, excitation) {
+    const size = nextPowerOfTwo(recorded.length);
+    const xReal = new Float64Array(size);
+    const xImag = new Float64Array(size);
+    const yReal = new Float64Array(size);
+    const yImag = new Float64Array(size);
+    for (let i = 0; i < excitation.length && i < size; i++) xReal[i] = excitation[i];
+    for (let i = 0; i < recorded.length && i < size; i++) yReal[i] = recorded[i];
+    fft(xReal, xImag, false);
+    fft(yReal, yImag, false);
+
+    let maxPower = 0;
+    for (let i = 0; i < size; i++) {
+      const power = xReal[i] * xReal[i] + xImag[i] * xImag[i];
+      if (power > maxPower) maxPower = power;
+    }
+    const regularizer = maxPower * 1e-7;
+    for (let i = 0; i < size; i++) {
+      const xr = xReal[i], xi = xImag[i];
+      const yr = yReal[i], yi = yImag[i];
+      const denominator = xr * xr + xi * xi + regularizer;
+      yReal[i] = (yr * xr + yi * xi) / denominator;
+      yImag[i] = (yi * xr - yr * xi) / denominator;
+    }
+    fft(yReal, yImag, true);
+    return yReal;
+  }
+
+  function linearFit(points, lowerDb, upperDb, sampleRate) {
+    let count = 0, sumX = 0, sumY = 0, sumXX = 0, sumXY = 0;
+    let firstIndex = -1, lastIndex = -1;
+    const step = Math.max(1, Math.floor(sampleRate / 200));
+    for (let i = 0; i < points.length; i += step) {
+      const db = points[i];
+      if (db <= lowerDb && db >= upperDb) {
+        const x = i / sampleRate;
+        count++;
+        if (firstIndex < 0) firstIndex = i;
+        lastIndex = i;
+        sumX += x; sumY += db; sumXX += x * x; sumXY += x * db;
+      }
+    }
+    const denominator = count * sumXX - sumX * sumX;
+    if (count < 12 || denominator <= 0) return null;
+    const slope = (count * sumXY - sumX * sumY) / denominator;
+    const intercept = (sumY - slope * sumX) / count;
+    const meanY = sumY / count;
+    let residual = 0, total = 0;
+    for (let i = 0; i < points.length; i += step) {
+      const db = points[i];
+      if (db <= lowerDb && db >= upperDb) {
+        const x = i / sampleRate;
+        residual += Math.pow(db - (slope * x + intercept), 2);
+        total += Math.pow(db - meanY, 2);
+      }
+    }
+    const rSquared = total > 0 ? Math.max(0, 1 - residual / total) : 0;
+    const fitDuration = (lastIndex - firstIndex) / sampleRate;
+    if (slope >= 0 || fitDuration < 0.08) return null;
+    return { rt60: -60 / slope, slope, rSquared, fitDuration };
+  }
+
+  function estimateReverberation(recorded, excitation, sampleRate) {
+    const impulse = deconvolve(recorded, excitation);
+    const searchStart = Math.floor(sampleRate * 0.08);
+    const searchEnd = Math.min(impulse.length, Math.floor(sampleRate * 1.5));
+    let peakIndex = -1, peakValue = 0;
+    for (let i = searchStart; i < searchEnd; i++) {
+      const value = Math.abs(impulse[i]);
+      if (value > peakValue) { peakValue = value; peakIndex = i; }
+    }
+    if (peakIndex < 0 || peakValue < 1e-7) {
+      throw new Error("Could not isolate the room's direct response. Move the microphone closer to the speaker and repeat.");
+    }
+
+    const tailLength = Math.min(Math.floor(sampleRate * 1.8), impulse.length - peakIndex);
+    if (tailLength < sampleRate * 0.35) {
+      throw new Error("The recording did not contain enough decay after the sweep. Please try again.");
+    }
+    const energyCurve = new Float64Array(tailLength);
+    let runningEnergy = 0;
+    for (let i = tailLength - 1; i >= 0; i--) {
+      const sample = impulse[peakIndex + i];
+      runningEnergy += sample * sample;
+      energyCurve[i] = runningEnergy;
+    }
+    const initialEnergy = Math.max(energyCurve[0], 1e-20);
+    const decayDb = new Float32Array(tailLength);
+    for (let i = 0; i < tailLength; i++) {
+      decayDb[i] = 10 * Math.log10(Math.max(energyCurve[i] / initialEnergy, 1e-12));
+    }
+
+    const t20 = linearFit(decayDb, -5, -25, sampleRate);
+    const edt = linearFit(decayDb, 0, -10, sampleRate);
+    const plot = [];
+    const plotCount = 260;
+    for (let i = 0; i < plotCount; i++) {
+      const index = Math.min(tailLength - 1, Math.floor(i * (tailLength - 1) / (plotCount - 1)));
+      plot.push({ ms: index / sampleRate * 1000, db: Number(decayDb[index].toFixed(2)) });
+    }
+    const rt60 = t20 && Number.isFinite(t20.rt60) && t20.rt60 < 20 ? t20.rt60 : null;
+    const quality = !t20 ? "Insufficient decay range" :
+      t20.rSquared >= 0.9 ? "Good fit" :
+      t20.rSquared >= 0.75 ? "Noisy fit" : "Weak fit";
+    return {
+      rt60,
+      edt: edt ? edt.rt60 : null,
+      rSquared: t20 ? t20.rSquared : null,
+      fitDuration: t20 ? t20.fitDuration : null,
+      quality,
+      curve: plot,
+      measuredAt: new Date().toISOString()
+    };
+  }
+
+  async function measureReverberation() {
+    $("progressLabel").textContent = "Preparing swept-sine measurement...";
+    $("progressBar").style.width = "10%";
+    const capture = await captureSweep();
+    $("progressBar").style.width = "70%";
+    $("progressLabel").textContent = "Deconvolving the sweep and calculating the decay curve...";
+    return estimateReverberation(capture.recorded, capture.sweep, capture.sampleRate);
+  }
+
   async function runTest() {
     if (busy) return;
-    if (mode === "check" && !baseline) return;
+    if (mode === "check" && !hasActiveBaseline()) return;
     busy = true;
     $("runButton").disabled = true;
     $("micButton").disabled = true;
     $("progressBar").style.width = "0%";
-    current = null;
+    if (method === "reverb") currentReverb = null;
+    else current = null;
     updateMetrics();
     try {
       await enableMicrophone();
-      setStatus("Measuring room response", "busy");
+      setStatus(method === "reverb" ? "Measuring reverberation" : "Measuring room response", "busy");
+
+      if (method === "reverb") {
+        const result = await measureReverberation();
+        currentReverb = result;
+        if (mode === "baseline") {
+          reverbBaseline = result;
+          localStorage.setItem(REVERB_STORAGE_KEY, JSON.stringify(reverbBaseline));
+          $("progressLabel").textContent = result.rt60
+            ? "Reverberation baseline saved. Switch to Check room to compare."
+            : "Decay curve saved, but RT60 could not be estimated. Try a quieter room or a longer decay recording.";
+        } else {
+          $("progressLabel").textContent = result.rt60
+            ? "Reverberation check complete. Compare the blue decay curve with the baseline."
+            : "Decay curve captured, but there was not enough clean range for an RT60 estimate.";
+        }
+        setStatus("Reverberation test complete", "ready");
+        drawDecayChart();
+        updateMetrics();
+        return;
+      }
+
       const readings = [];
       for (let i = 0; i < FREQUENCIES.length; i++) {
         $("progressLabel").textContent = "Testing " + FREQUENCIES[i] + " Hz (" + (i + 1) + " of " + FREQUENCIES.length + ")";
@@ -275,7 +616,7 @@
       $("progressLabel").textContent = error.message || "Could not complete the measurement.";
     } finally {
       busy = false;
-      $("runButton").disabled = mode === "check" && !baseline;
+      $("runButton").disabled = mode === "check" && !hasActiveBaseline();
       $("micButton").disabled = Boolean(micStream);
     }
   }
@@ -329,6 +670,53 @@
     }
   }
 
+
+  function drawDecayChart() {
+    const canvas = $("decayChart");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width, height = canvas.height;
+    ctx.clearRect(0, 0, width, height);
+    const left = 58, right = width - 22, top = 18, bottom = height - 42;
+    const maxMs = 1800, minDb = -50, maxDb = 0;
+    ctx.font = "13px system-ui";
+    ctx.strokeStyle = "#26364b";
+    ctx.fillStyle = "#91a1b8";
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 5; i++) {
+      const y = top + (bottom - top) * i / 5;
+      const db = maxDb - i * 10;
+      ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+      ctx.fillText(db.toString(), 17, y + 5);
+    }
+    for (let i = 0; i <= 6; i++) {
+      const x = left + (right - left) * i / 6;
+      ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke();
+      ctx.fillText((i * 300).toString(), x - 11, bottom + 23);
+    }
+    ctx.fillText("Time (ms)", right - 62, height - 8);
+    const sets = [];
+    if (reverbBaseline && reverbBaseline.curve) sets.push({ data: reverbBaseline.curve, color: "#70d6d0" });
+    if (currentReverb && currentReverb.curve) sets.push({ data: currentReverb.curve, color: "#8daeff" });
+    for (const set of sets) {
+      ctx.strokeStyle = set.color; ctx.lineWidth = 2.5; ctx.beginPath();
+      let started = false;
+      for (const point of set.data) {
+        if (point.ms > maxMs) break;
+        const x = left + (point.ms / maxMs) * (right - left);
+        const y = bottom - ((Math.max(minDb, Math.min(maxDb, point.db)) - minDb) / (maxDb - minDb)) * (bottom - top);
+        if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    if (!sets.length) {
+      ctx.fillStyle = "#91a1b8"; ctx.font = "17px system-ui";
+      ctx.fillText("Run a reverberation baseline test to show the decay curve.", left + 15, height / 2);
+    }
+  }
+
+  $("frequencyMethod").addEventListener("click", () => setMethod("frequency"));
+  $("reverbMethod").addEventListener("click", () => setMethod("reverb"));
   $("baselineMode").addEventListener("click", () => setMode("baseline"));
   $("checkMode").addEventListener("click", () => setMode("check"));
   $("micButton").addEventListener("click", async () => {
@@ -339,11 +727,12 @@
   $("resetButton").addEventListener("click", () => {
     if (busy) return;
     localStorage.removeItem(STORAGE_KEY);
-    baseline = null; current = null;
+    localStorage.removeItem(REVERB_STORAGE_KEY);
+    baseline = null; current = null; reverbBaseline = null; currentReverb = null;
     setMode(mode);
-    drawChart(); updateMetrics();
+    drawChart(); drawDecayChart(); updateMetrics();
     $("progressBar").style.width = "0%";
-    $("progressLabel").textContent = "Baseline cleared. Run Set room baseline to start again.";
+    $("progressLabel").textContent = "Baselines cleared. Run Set room baseline to start again.";
   });
 
   setMode("baseline");
